@@ -34,7 +34,7 @@ module.exports.createSolver = function (chars, positions) {
             self.s = new_s;
         } else {
             // TODO: regenate population only from guys that would not be filtered by previous guesses
-            console.log('Should not be here');
+            console.log('!!!!!!!! Should not be here !!!!!!!!');
             self.s = self.generateRandomPopulation();
         }
     };
@@ -90,29 +90,87 @@ module.exports.createSolver = function (chars, positions) {
     }
     
     self.onlySameScore = function(testSecret, testScore) {
-        var new_s = _.filter(self.s, function(item){
-                        var item_score = self.score(testSecret, item);
-                        return self.isSameScore(testScore, item_score);
+        console.log('set is of size: ' + self.s.length)
+        
+        var new_s = _.filter(self.s, function(item) {
+                        return self.matchScore(item, testSecret, testScore);
                     });
                     
         return new_s;
     }
     
     self.score = function(test, hidden) {
-            
+    
         var exact = 0;
         var near = 0;
+        
+        test = test.split('');
+        hidden = hidden.split('');
         
         for (var i = 0; i < positions; i++) {
             if (hidden[i] == test[i]) {
                 exact++;
+                hidden[i] = null;
+                test[i] = null;
+            }
+        }
+        for (var i = 0; i < positions; i++) {
+            if (test[i] == null) continue;
+            var index = self.baseIndexOf(hidden, test[i])
+            if (index >= 0) {
                 near++;
-            } else if (test.indexOf(hidden[i]) >= 0) {
-                near++;
+                hidden[index] = null;
+                test[i] = null;
             }
         }
         
-        return { exact: exact, near: near-exact };
+        return { exact: exact, near: near };
+    }
+    
+    self.baseIndexOf = function(array, value) {
+        var index = -1;
+        
+        while (++index < positions) {
+            if (array[index] === value) {
+                return index;
+            }
+        }
+        return -1;
+    }
+        
+    self.matchScore = function(test, hidden, targetScore) {
+        var exact = 0;
+        var near = 0;
+        
+        test = test.split('');
+        hidden = hidden.split('');
+        
+        for (var i = 0; i < positions; i++) {
+            if (hidden[i] == test[i]) {
+                exact++;
+                if (exact > targetScore.exact)
+                    return false;
+                hidden[i] = null;
+                test[i] = null;
+            }
+        }
+        
+        if (exact != targetScore.exact)
+            return false;
+        
+        for (var i = 0; i < positions; i++) {
+            if (test[i] == null) continue;
+            var index = self.baseIndexOf(hidden, test[i])
+            if (index >= 0) {
+                near++;
+                if (near > targetScore.near)
+                    return false;
+                hidden[index] = null;
+                test[i] = null;
+            }
+        }
+        
+        return near == targetScore.near;
     }
     
     self.isSameScore = function(score1, score2) {
