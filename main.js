@@ -4,9 +4,9 @@ var request = require('request');
 var _ = require('lodash');
 var Solver = require('./Solver.js');
 
-var azmmbot_token = 'xoxb-44758592562-ZStf1kqsQ2lYj0Iz1G7EGPs6';
+var azmmbot_token = 'xoxb-44758592562-bGsTMw95gfPT1TGF6ubXAEKs';
 
-var url = 'http://az-mastermind.herokuapp.com'
+var url = 'http://az-mastermind.herokuapp.com';
 
 console.log('Creating solver');
 
@@ -36,7 +36,9 @@ bot.on('start', function() {
         { hear: /[RBGYPOCM]{8}/i,
           execute: playGuess },
         { hear: /tip/,
-          execute: tip }
+          execute: tip },
+        { hear: /try that/,
+          execute: tryGuess }
     ];
    
     function newGame(data) {
@@ -76,13 +78,20 @@ bot.on('start', function() {
     function tip(data) {
         
         if (!isWarnGiven) {
-           reply(data, 'You know there are more than 16 million possibilities? I may take a while...' + 
-           '\r\nIf you want a tip, say "tip" again');
+            reply(data, 'You know there are more than 16 million possibilities? I may take a while...' + 
+            '\r\nIf you want a tip, say "tip" again');
             isWarnGiven = true;
         } else {
             someGuess = someGuess == null ? solver.getFirstGuess() : solver.getNextBestGuess(game_state.result);
-            console.log('guess could be: ' + someGuess);
             reply(data, 'Okay, how about: ' + someGuess + ' ?');    
+        }
+    }
+    
+    function tryGuess(data) {
+        if (someGuess == null) {
+            reply(data, 'Try what?');
+        } else {
+            playGuess(data, [someGuess]);    
         }
     }
     
@@ -99,7 +108,7 @@ bot.on('start', function() {
         bot.getUsers().then(function(users) {
             for (var eachuser in users.members) {
                 if (users.members[eachuser].id == data.user) {
-                    name = users.members[eachuser].name;
+                    var name = users.members[eachuser].name;
                     bot.postMessageToUser(name, message, callback);
                 }
             }

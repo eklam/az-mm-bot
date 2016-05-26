@@ -1,5 +1,3 @@
-'use strict'
-
 var _ = require('lodash');
 
 module.exports.createSolver = function (chars, positions) {
@@ -18,25 +16,20 @@ module.exports.createSolver = function (chars, positions) {
     self.resetWithPopulation = function(pop) {
         self.guesses = [];
         self.s = pop;
+        self.firstPass = 0; 
     };
     
     self.receiveFeedback = function(guess, gscore) {
-        
-        console.log('receiving feedback');
-        console.log('..guess: ' + guess);
-        console.log('..score: ' + JSON.stringify(gscore));
         
         self.guesses.push({guess: guess, score: gscore});
         
         // Remove from S any code that would not give the same response if it (the guess) were the code.
         var new_s = self.onlySameScore(guess, gscore);
-        if (new_s.length > 0) {
-            self.s = new_s;
-        } else {
-            // TODO: regenate population only from guys that would not be filtered by previous guesses
-            console.log('!!!!!!!! Should not be here !!!!!!!!');
-            self.s = self.generateRandomPopulation();
-        }
+        
+        if (new_s.length <= 0)
+            throw new Error('Set became empty, something is wrong!');
+        
+        self.s = new_s;
     };
     
     self.getFirstGuess = function() {
@@ -69,12 +62,12 @@ module.exports.createSolver = function (chars, positions) {
                     recurse(arr, index+1);
                 }
             } else {
-                arr = arr.slice(); // cloning the array
+                arr = arr.slice(0); // cloning the array
                 perms.push(arr.join(''));
             }
         })([], 0);
         return perms;
-    }
+    };
     
     self.randomCode = function() {
         var secret = '';
@@ -83,20 +76,40 @@ module.exports.createSolver = function (chars, positions) {
             secret += chars[j];
         }
         return secret;
-    }
+    };
     
     self.getLastGuess = function() {
         return self.guesses[self.guesses.length-1];
-    }
+    };
     
+    self.firstPass  = 0;
     self.onlySameScore = function(testSecret, testScore) {
-        console.log('set is of size: ' + self.s.length)
         
         var new_s = _.filter(self.s, function(item) {
-                        return self.matchScore(item, testSecret, testScore);
-                    });
+            
+            return self.matchExact(item, testSecret, testScore) && 
+                 (self.firstPass < 3 || self.matchScore(item, testSecret, testScore));
+                
+            // return self.matchScore(item, testSecret, testScore);
+        });
+                  
+        self.firstPass++;
                     
         return new_s;
+    };
+    
+    self.matchExact = function(test, hidden, targetScore) {
+        var exact = 0;
+        
+        for (var i = 0; i < positions; i++) {
+            if (hidden[i] == test[i]) {
+                exact++;
+                if (exact > targetScore.exact)
+                    return false;
+            }
+        }
+        
+        return exact == targetScore.exact;
     }
     
     self.score = function(test, hidden) {
@@ -116,7 +129,7 @@ module.exports.createSolver = function (chars, positions) {
         }
         for (var i = 0; i < positions; i++) {
             if (test[i] == null) continue;
-            var index = self.baseIndexOf(hidden, test[i])
+            var index = self.baseIndexOf(hidden, test[i]);
             if (index >= 0) {
                 near++;
                 hidden[index] = null;
@@ -125,18 +138,18 @@ module.exports.createSolver = function (chars, positions) {
         }
         
         return { exact: exact, near: near };
-    }
+    };
     
     self.baseIndexOf = function(array, value) {
         var index = -1;
         
         while (++index < positions) {
-            if (array[index] === value) {
+            if (array[index] == value) {
                 return index;
             }
         }
         return -1;
-    }
+    };
         
     self.matchScore = function(test, hidden, targetScore) {
         var exact = 0;
@@ -150,32 +163,33 @@ module.exports.createSolver = function (chars, positions) {
                 exact++;
                 if (exact > targetScore.exact)
                     return false;
-                hidden[i] = null;
-                test[i] = null;
+                hidden[i] = test[i] = null;
             }
         }
         
         if (exact != targetScore.exact)
             return false;
-        
-        for (var i = 0; i < positions; i++) {
+         
+        for (var i = 0; i < positions; i++) {   
             if (test[i] == null) continue;
-            var index = self.baseIndexOf(hidden, test[i])
+            var index = self.baseIndexOf(hidden, test[i]);
             if (index >= 0) {
                 near++;
                 if (near > targetScore.near)
                     return false;
-                hidden[index] = null;
-                test[i] = null;
+                hidden[index] = test[i] = null;
             }
         }
         
-        return near == targetScore.near;
-    }
+        if (near != targetScore.near)
+            return false;
+        
+        return true;
+    };
     
     self.isSameScore = function(score1, score2) {
         return score1.exact == score2.exact && score1.near == score2.near;
-    }
+    };
     
     self.getNextBestGuess = function(testScore) {
     
@@ -205,7 +219,7 @@ module.exports.createSolver = function (chars, positions) {
             }
         }
         return sampleGuesses[best_index];
-    }
+    };
     
     self.howManyEliminated_ = function (sampleGuesses, testSecret, testScore) {
         var countEliminate = 0;
@@ -216,7 +230,7 @@ module.exports.createSolver = function (chars, positions) {
         }
             
         return countEliminate;
-    }
+    };
    
     return self;
 };
